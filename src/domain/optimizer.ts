@@ -28,7 +28,7 @@ export function calculateZonePressure(zone: Zone): number {
 export function estimateWaitMinutes(servicePoint: ServicePoint): number {
   const throughput = Math.max(servicePoint.serviceRatePerMinute * servicePoint.activeCounters, 0.1);
   const baseWait = servicePoint.queueDepth / throughput;
-  const servicePenalty = servicePoint.accessibilityReady ? 0 : 1.15;
+  const servicePenalty = servicePoint.accessibilityReady ? 1 : 1.15;
   return Number((baseWait * servicePenalty).toFixed(1));
 }
 
@@ -119,6 +119,9 @@ function enumerateRoutes(snapshot: VenueSnapshot, attendee: AttendeeProfile): Ro
     }
 
     const currentZoneId = path[path.length - 1];
+    if (!currentZoneId) {
+      continue;
+    }
     if (currentZoneId === attendee.destinationZoneId) {
       const route = scoreRoute(path, snapshot, attendee, zonePressure);
       if (route) {
@@ -197,12 +200,16 @@ export function recommendQueues(snapshot: VenueSnapshot): QueueRecommendation[] 
       .sort((left, right) => left.wait - right.wait);
 
     const bestAlternative = alternatives[0];
-    recommendations.push({
+    const recommendation: QueueRecommendation = {
       servicePointId: servicePoint.id,
       estimatedWaitMinutes,
-      recommendedAlternativeId:
-        bestAlternative && bestAlternative.wait + 3 < estimatedWaitMinutes ? bestAlternative.id : undefined,
-    });
+    };
+
+    if (bestAlternative && bestAlternative.wait + 3 < estimatedWaitMinutes) {
+      recommendation.recommendedAlternativeId = bestAlternative.id;
+    }
+
+    recommendations.push(recommendation);
   }
 
   return recommendations;
@@ -265,18 +272,16 @@ export function optimizeVenue(
   );
   const queueRecommendations = recommendQueues(snapshot);
   const attendeeGuidance = attendee ? recommendRoute(snapshot, attendee) : undefined;
-  const queueGuidance = attendeeGuidance
-    ? queueRecommendations.find((item) => item.servicePointId === attendee.destinationZoneId)
-    : undefined;
-
-  return {
+  const result: OptimizationResult = {
     timestampIso: snapshot.timestampIso,
     zonePressure,
-    attendeeGuidance:
-      attendeeGuidance && queueGuidance
-        ? { ...attendeeGuidance, queueRecommendation: queueGuidance }
-        : attendeeGuidance,
     queueRecommendations,
     interventions: generateInterventions(snapshot),
   };
+
+  if (attendeeGuidance) {
+    result.attendeeGuidance = attendeeGuidance;
+  }
+
+  return result;
 }

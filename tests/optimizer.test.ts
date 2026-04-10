@@ -12,8 +12,8 @@ const snapshot: VenueSnapshot = {
       id: "entry-west",
       name: "Entry West",
       capacity: 1000,
-      occupancy: 850,
-      inflowPerMinute: 80,
+      occupancy: 980,
+      inflowPerMinute: 110,
       outflowPerMinute: 20,
       accessibilityScore: 0.95,
       amenities: ["entry"],
@@ -105,7 +105,7 @@ test("recommendRoute avoids inaccessible shortcuts for wheelchair users", () => 
 
   const guidance = recommendRoute(snapshot, attendee);
   assert.ok(guidance);
-  assert.deepEqual(guidance.route.path, ["entry-west", "atrium", "seating-bowl"]);
+  assert.deepEqual(guidance!.route.path, ["entry-west", "atrium", "seating-bowl"]);
 });
 
 test("optimizeVenue suggests alternatives and interventions under pressure", () => {
@@ -113,7 +113,7 @@ test("optimizeVenue suggests alternatives and interventions under pressure", () 
   const restroomA = result.queueRecommendations.find((item) => item.servicePointId === "restroom-a");
 
   assert.ok(restroomA);
-  assert.equal(restroomA.recommendedAlternativeId, "restroom-b");
+  assert.equal(restroomA!.recommendedAlternativeId, "restroom-b");
   assert.ok(result.interventions.length > 0);
   assert.ok(result.interventions.some((item) => item.zoneId === "entry-west"));
 });

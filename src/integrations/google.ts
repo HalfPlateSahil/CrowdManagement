@@ -37,20 +37,32 @@ export interface GoogleConfig {
   analyticsDataset?: string;
 }
 
-export function createGoogleConfig(env: NodeJS.ProcessEnv): GoogleConfig {
+export function createGoogleConfig(env: Record<string, string | undefined>): GoogleConfig {
   const projectId = env.GOOGLE_CLOUD_PROJECT;
 
   if (!projectId) {
     throw new Error("Missing GOOGLE_CLOUD_PROJECT for Google service integration.");
   }
 
-  return {
-    projectId,
-    mapsApiKey: env.GOOGLE_MAPS_API_KEY,
-    firebaseAudience: env.FIREBASE_AUDIENCE,
-    walletIssuerId: env.GOOGLE_WALLET_ISSUER_ID,
-    analyticsDataset: env.BIGQUERY_DATASET,
-  };
+  const config: GoogleConfig = { projectId };
+
+  if (env.GOOGLE_MAPS_API_KEY) {
+    config.mapsApiKey = env.GOOGLE_MAPS_API_KEY;
+  }
+
+  if (env.FIREBASE_AUDIENCE) {
+    config.firebaseAudience = env.FIREBASE_AUDIENCE;
+  }
+
+  if (env.GOOGLE_WALLET_ISSUER_ID) {
+    config.walletIssuerId = env.GOOGLE_WALLET_ISSUER_ID;
+  }
+
+  if (env.BIGQUERY_DATASET) {
+    config.analyticsDataset = env.BIGQUERY_DATASET;
+  }
+
+  return config;
 }
 
 export class InMemoryGooglePlatform implements GooglePlatform {

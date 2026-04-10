@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PulsePath Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Venue Intelligence</p>
+          <h1>PulsePath Live Control</h1>
+          <p class="lede">
+            Simulate crowd pressure, test attendee guidance, and inspect the operational actions the venue should take in real time.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <div id="integration-mode" class="status-chip">Checking integration mode...</div>
+          <button id="load-demo" class="button secondary" type="button">Load demo data</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Scenario Input</h2>
+          <button id="run-optimization" class="button" type="button">Run optimization</button>
+        </div>
+        <div class="grid two">
+          <label>
+            <span>Venue Snapshot JSON</span>
+            <textarea id="snapshot-input" spellcheck="false"></textarea>
+          </label>
+          <label>
+            <span>Attendee JSON</span>
+            <textarea id="attendee-input" spellcheck="false"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="grid three">
+        <article class="panel stat-panel">
+          <h2>Zone Pressure</h2>
+          <div id="zone-pressure" class="metric-list empty">Run a scenario to see zone pressure.</div>
+        </article>
+        <article class="panel stat-panel">
+          <h2>Queue Advice</h2>
+          <div id="queue-recommendations" class="metric-list empty">Queue guidance will appear here.</div>
+        </article>
+        <article class="panel stat-panel">
+          <h2>Guidance</h2>
+          <div id="attendee-guidance" class="metric-list empty">Attendee routing will appear here.</div>
+        </article>
+      </section>
+
+      <section class="panel">
+        <h2>Operational Actions</h2>
+        <div id="interventions" class="cards empty">No interventions yet.</div>
+      </section>
+
+      <section class="panel">
+        <h2>Google Delivery Preview</h2>
+        <pre id="delivery-preview" class="code-block">No notifications published yet.</pre>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+  </html>

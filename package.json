@@ -8,10 +8,16 @@
     "build": "tsc --project tsconfig.json",
     "check": "tsc --noEmit --project tsconfig.json",
     "start": "node --import tsx src/index.ts",
+    "dev": "node --import tsx src/index.ts",
     "test": "node --test --import tsx tests/**/*.test.ts"
   },
   "devDependencies": {
     "@types/node": "^24.5.2",
+    "@vercel/node": "^5.3.11",
+    "@google-cloud/bigquery": "^7.9.4",
+    "@google-cloud/pubsub": "^4.10.0",
+    "firebase-admin": "^13.4.0",
+    "google-auth-library": "^9.15.1",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3"
   }

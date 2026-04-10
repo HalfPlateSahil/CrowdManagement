@@ -1,0 +1,17 @@
+{
+  "name": "crowd-management",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Venue flow optimization system for large-scale sporting events.",
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "check": "tsc --noEmit --project tsconfig.json",
+    "start": "node --import tsx src/index.ts",
+    "test": "node --test --import tsx tests/**/*.test.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3"
+  }
+}

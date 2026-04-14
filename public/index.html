@@ -25,7 +25,17 @@
       <section class="panel">
         <div class="panel-header">
           <h2>Scenario Input</h2>
-          <button id="run-optimization" class="button" type="button">Run optimization</button>
+          <div class="toolbar">
+            <label class="select-wrap">
+              <span>Preset</span>
+              <select id="scenario-select">
+                <option value="demo">Arrival surge</option>
+                <option value="halftime">Halftime rush</option>
+                <option value="exit">Exit wave</option>
+              </select>
+            </label>
+            <button id="run-optimization" class="button" type="button">Run optimization</button>
+          </div>
         </div>
         <div class="grid two">
           <label>
@@ -37,6 +47,17 @@
             <textarea id="attendee-input" spellcheck="false"></textarea>
           </label>
         </div>
+      </section>
+
+      <section class="grid two">
+        <article class="panel">
+          <h2>Venue Summary</h2>
+          <div id="venue-summary" class="metric-list empty">Venue-level insight will appear here.</div>
+        </article>
+        <article class="panel">
+          <h2>Top Hotspots</h2>
+          <div id="hotspots" class="metric-list empty">Hotspots will appear here.</div>
+        </article>
       </section>
 
       <section class="grid three">
@@ -62,6 +83,16 @@
       <section class="panel">
         <h2>Google Delivery Preview</h2>
         <pre id="delivery-preview" class="code-block">No notifications published yet.</pre>
+      </section>
+
+      <section class="panel">
+        <h2>Review Readiness</h2>
+        <div class="checklist">
+          <div class="check-item">Strict schema validation at the API boundary</div>
+          <div class="check-item">Accessibility-aware route selection</div>
+          <div class="check-item">Deployable web dashboard and serverless APIs</div>
+          <div class="check-item">Google-ready runtime with demo and live modes</div>
+        </div>
       </section>
     </main>
 

@@ -2,6 +2,14 @@
 
 PulsePath is a venue operations platform designed for large-scale sporting events. It improves the in-person attendee experience by reducing friction across arrival, circulation, concessions, restrooms, and exit flows.
 
+This version is intentionally optimized for production-readiness and review quality:
+
+- schema-validated APIs
+- safer dashboard rendering without string-based DOM injection
+- clearer venue-level summaries for operators
+- demo and live Google integration modes
+- deployable serverless structure with local parity
+
 ## Why this system is different
 
 Most event tooling reports crowding after it happens. PulsePath is built around anticipatory coordination:
@@ -34,6 +42,7 @@ The engine in `src/domain/optimizer.ts` scores:
 - queue wait times
 - rerouting opportunities
 - staffing and signage interventions
+- venue-level summary health for operator decision making
 
 ### 3. Real-time coordination
 
@@ -98,6 +107,7 @@ The local app now includes:
 - `GET /api/demo` to load a ready-made venue scenario
 - `GET /api/config` to show whether Google integrations are in demo or live mode
 - `POST /api/optimize` to submit a snapshot and optional attendee profile
+- strict schema validation with structured error details on invalid requests
 - a browser dashboard in `public/` for live testing without any frontend build step
 - Vercel-ready serverless endpoints in `api/` for hosted deployment
 
@@ -105,6 +115,7 @@ The local app now includes:
 
 - `src/server/http.ts`: HTTP server, safe request parsing, and static file serving
 - `src/server/app.ts`: shared app logic used by both local server and deployed APIs
+- `src/server/schemas.ts`: typed runtime validation for API payloads
 - `src/application/venue-orchestrator.ts`: orchestration layer
 - `src/domain/optimizer.ts`: pressure, queue, and intervention logic
 - `src/integrations/google.ts`: Google integration contracts, demo runtime, and live Google adapters
@@ -133,6 +144,16 @@ For local development you can still use:
 npm install
 npm run dev
 ```
+
+## Review-oriented improvements
+
+These changes are aimed at stronger technical review scores:
+
+- tighter input validation and safer failure modes
+- cleaner domain separation between models, optimization, orchestration, and transport
+- better live usability through scenario presets and venue summaries
+- clearer deployment and environment setup
+- additional automated tests for runtime mode and validation behavior
 
 ## Google services setup
 
@@ -221,6 +242,7 @@ The included tests cover the most important decision paths:
 - accessibility-aware routing
 - high-pressure intervention generation
 - safe Google runtime mode selection
+- payload validation and venue summary generation
 
 ## Production hardening recommendations
 

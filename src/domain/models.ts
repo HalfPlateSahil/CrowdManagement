@@ -62,6 +62,22 @@ export interface QueueRecommendation {
   recommendedAlternativeId?: string;
 }
 
+export interface ZoneHotspot {
+  zoneId: string;
+  pressure: number;
+  severity: "healthy" | "elevated" | "high" | "critical";
+}
+
+export interface VenueSummary {
+  venueStatus: "stable" | "watch" | "intervene";
+  averageZonePressure: number;
+  busiestZoneId?: string;
+  highestPredictedWaitMinutes: number;
+  hotspots: ZoneHotspot[];
+  recommendedActionCount: number;
+  insight: string;
+}
+
 export interface Intervention {
   type: "reroute" | "staffing" | "signage" | "wallet-update" | "broadcast";
   priority: "critical" | "high" | "medium";
@@ -83,4 +99,5 @@ export interface OptimizationResult {
   attendeeGuidance?: AttendeeGuidance;
   queueRecommendations: QueueRecommendation[];
   interventions: Intervention[];
+  summary: VenueSummary;
 }

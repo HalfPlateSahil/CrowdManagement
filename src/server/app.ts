@@ -11,6 +11,7 @@ import {
   type GooglePlatform,
   type GooglePlatformDiagnostics,
 } from "../integrations/google.js";
+import { optimizationRequestSchema } from "./schemas.js";
 
 const publicDir = normalize(join(fileURLToPath(new URL("../../public/", import.meta.url))));
 
@@ -35,32 +36,6 @@ export function createAppContext(): AppContext {
   return { orchestrator, platform: runtime.platform, diagnostics: runtime.diagnostics };
 }
 
-export function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-export function isAttendeeProfile(value: unknown): value is AttendeeProfile {
-  return (
-    isObject(value) &&
-    typeof value.id === "string" &&
-    typeof value.currentZoneId === "string" &&
-    typeof value.destinationZoneId === "string" &&
-    typeof value.partySize === "number" &&
-    typeof value.mobilityNeed === "string"
-  );
-}
-
-export function isVenueSnapshot(value: unknown): value is VenueSnapshot {
-  return (
-    isObject(value) &&
-    typeof value.venueId === "string" &&
-    typeof value.timestampIso === "string" &&
-    Array.isArray(value.zones) &&
-    Array.isArray(value.connections) &&
-    Array.isArray(value.servicePoints)
-  );
-}
-
 export function getDemoPayload(): { snapshot: VenueSnapshot; attendee: AttendeeProfile } {
   return { snapshot: demoSnapshot, attendee: demoAttendee };
 }
@@ -73,21 +48,38 @@ export async function runOptimizationPayload(
   context: AppContext,
   payload: { snapshot?: unknown; attendee?: unknown },
 ): Promise<{ statusCode: number; body: Record<string, unknown> }> {
-  const snapshot = payload.snapshot;
-  const attendee = payload.attendee;
-
-  if (!isVenueSnapshot(snapshot)) {
-    return { statusCode: 400, body: { error: "Invalid or missing snapshot payload." } };
+  const parsed = optimizationRequestSchema.safeParse(payload);
+  if (!parsed.success) {
+    return {
+      statusCode: 400,
+      body: {
+        error: "Invalid optimization payload.",
+        issues: parsed.error.issues.map((issue) => ({
+          path: issue.path.join("."),
+          message: issue.message,
+        })),
+      },
+    };
   }
 
-  if (attendee !== undefined && !isAttendeeProfile(attendee)) {
-    return { statusCode: 400, body: { error: "Invalid attendee payload." } };
-  }
+  const attendee = parsed.data.attendee
+    ? {
+        id: parsed.data.attendee.id,
+        currentZoneId: parsed.data.attendee.currentZoneId,
+        destinationZoneId: parsed.data.attendee.destinationZoneId,
+        partySize: parsed.data.attendee.partySize,
+        mobilityNeed: parsed.data.attendee.mobilityNeed,
+        ...(parsed.data.attendee.prefersShortestWalk !== undefined
+          ? { prefersShortestWalk: parsed.data.attendee.prefersShortestWalk }
+          : {}),
+      }
+    : undefined;
 
-  const result = await context.orchestrator.runOptimization(snapshot, attendee);
+  const result = await context.orchestrator.runOptimization(parsed.data.snapshot, attendee);
   return {
     statusCode: 200,
     body: {
+      ok: true,
       result,
       diagnostics: context.diagnostics,
       delivery: getPlatformDeliverySnapshot(context.platform),

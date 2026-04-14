@@ -7,8 +7,10 @@ import {
   type QueueRecommendation,
   type RouteOption,
   type ServicePoint,
+  type VenueSummary,
   type VenueSnapshot,
   type Zone,
+  type ZoneHotspot,
 } from "./models.js";
 
 const MAX_PATH_DEPTH = 6;
@@ -23,6 +25,19 @@ export function calculateZonePressure(zone: Zone): number {
   const flowPressure = clamp(flowImbalance / Math.max(zone.capacity * 0.05, 1), -1, 1);
 
   return Number(clamp((occupancyRatio * 0.7) + ((flowPressure + 1) * 0.15), 0, 1.5).toFixed(3));
+}
+
+function pressureSeverity(pressure: number): ZoneHotspot["severity"] {
+  if (pressure >= 1.05) {
+    return "critical";
+  }
+  if (pressure >= 0.9) {
+    return "high";
+  }
+  if (pressure >= 0.7) {
+    return "elevated";
+  }
+  return "healthy";
 }
 
 export function estimateWaitMinutes(servicePoint: ServicePoint): number {
@@ -263,6 +278,57 @@ export function generateInterventions(snapshot: VenueSnapshot): Intervention[] {
   return interventions;
 }
 
+export function summarizeVenue(
+  zonePressure: Record<string, number>,
+  queueRecommendations: QueueRecommendation[],
+  interventions: Intervention[],
+): VenueSummary {
+  const hotspots = Object.entries(zonePressure)
+    .map(([zoneId, pressure]) => ({
+      zoneId,
+      pressure,
+      severity: pressureSeverity(pressure),
+    }))
+    .sort((left, right) => right.pressure - left.pressure);
+  const averageZonePressure =
+    hotspots.length === 0
+      ? 0
+      : Number((hotspots.reduce((sum, item) => sum + item.pressure, 0) / hotspots.length).toFixed(3));
+  const busiestZone = hotspots[0];
+  const highestPredictedWaitMinutes =
+    queueRecommendations.length === 0
+      ? 0
+      : Math.max(...queueRecommendations.map((item) => item.estimatedWaitMinutes));
+  const venueStatus: VenueSummary["venueStatus"] =
+    interventions.some((item) => item.priority === "critical")
+      ? "intervene"
+      : interventions.some((item) => item.priority === "high") || highestPredictedWaitMinutes >= 10
+        ? "watch"
+        : "stable";
+
+  const insight =
+    venueStatus === "intervene"
+      ? `Immediate intervention is recommended around ${busiestZone?.zoneId ?? "the venue"} to reduce congestion buildup.`
+      : venueStatus === "watch"
+        ? `Venue conditions are manageable, but ${busiestZone?.zoneId ?? "key zones"} should be monitored closely.`
+        : "Venue conditions are stable and attendee movement appears healthy.";
+
+  const summary: VenueSummary = {
+    venueStatus,
+    averageZonePressure,
+    highestPredictedWaitMinutes,
+    hotspots: hotspots.slice(0, 5),
+    recommendedActionCount: interventions.length,
+    insight,
+  };
+
+  if (busiestZone) {
+    summary.busiestZoneId = busiestZone.zoneId;
+  }
+
+  return summary;
+}
+
 export function optimizeVenue(
   snapshot: VenueSnapshot,
   attendee?: AttendeeProfile,
@@ -272,11 +338,13 @@ export function optimizeVenue(
   );
   const queueRecommendations = recommendQueues(snapshot);
   const attendeeGuidance = attendee ? recommendRoute(snapshot, attendee) : undefined;
+  const interventions = generateInterventions(snapshot);
   const result: OptimizationResult = {
     timestampIso: snapshot.timestampIso,
     zonePressure,
     queueRecommendations,
-    interventions: generateInterventions(snapshot),
+    interventions,
+    summary: summarizeVenue(zonePressure, queueRecommendations, interventions),
   };
 
   if (attendeeGuidance) {

@@ -95,6 +95,29 @@ h1 {
   margin-bottom: 18px;
 }
 
+.toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+}
+
+.select-wrap {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+select {
+  min-width: 180px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(45, 33, 24, 0.12);
+  background: var(--surface-strong);
+  color: var(--ink);
+  font: inherit;
+}
+
 .grid {
   display: grid;
   gap: 20px;
@@ -163,6 +186,14 @@ textarea,
   border: 1px solid var(--line);
 }
 
+.metric-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
 .metric strong {
   display: block;
   margin-bottom: 6px;
@@ -193,6 +224,19 @@ textarea,
   font-weight: 700;
 }
 
+.checklist {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.check-item {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(0, 109, 119, 0.06);
+  border: 1px solid rgba(0, 109, 119, 0.12);
+}
+
 .priority-critical {
   border-left: 6px solid var(--warn);
 }
@@ -211,7 +255,8 @@ textarea,
 
 @media (max-width: 920px) {
   .hero,
-  .panel-header {
+  .panel-header,
+  .toolbar {
     flex-direction: column;
     align-items: stretch;
   }
@@ -223,5 +268,9 @@ textarea,
 
   textarea {
     min-height: 260px;
+  }
+
+  .checklist {
+    grid-template-columns: 1fr;
   }
 }

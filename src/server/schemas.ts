@@ -89,4 +89,11 @@ export const optimizationRequestSchema = z.object({
   attendee: attendeeProfileSchema.optional(),
 });
 
+export const optimizationComparisonSchema = z.object({
+  baselineSnapshot: venueSnapshotSchema,
+  candidateSnapshot: venueSnapshotSchema,
+  attendee: attendeeProfileSchema.optional(),
+});
+
 export type OptimizationRequestInput = z.infer<typeof optimizationRequestSchema>;
+export type OptimizationComparisonInput = z.infer<typeof optimizationComparisonSchema>;

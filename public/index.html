@@ -34,6 +34,7 @@
                 <option value="exit">Exit wave</option>
               </select>
             </label>
+            <button id="compare-scenarios" class="button secondary" type="button">Compare scenarios</button>
             <button id="run-optimization" class="button" type="button">Run optimization</button>
           </div>
         </div>
@@ -83,6 +84,22 @@
       <section class="panel">
         <h2>Google Delivery Preview</h2>
         <pre id="delivery-preview" class="code-block">No notifications published yet.</pre>
+      </section>
+
+      <section class="grid two">
+        <article class="panel">
+          <h2>Explainability</h2>
+          <div id="explainability" class="metric-list empty">Model reasoning will appear here.</div>
+        </article>
+        <article class="panel">
+          <h2>Audit Trail</h2>
+          <div id="audit-trail" class="metric-list empty">Recent runs will appear here.</div>
+        </article>
+      </section>
+
+      <section class="panel">
+        <h2>Scenario Comparison</h2>
+        <div id="comparison-output" class="metric-list empty">Run a comparison to see resilience improvements or regressions.</div>
       </section>
 
       <section class="panel">

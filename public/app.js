@@ -8,8 +8,12 @@ const deliveryPreview = document.querySelector("#delivery-preview");
 const integrationMode = document.querySelector("#integration-mode");
 const venueSummary = document.querySelector("#venue-summary");
 const hotspots = document.querySelector("#hotspots");
+const explainability = document.querySelector("#explainability");
+const auditTrail = document.querySelector("#audit-trail");
+const comparisonOutput = document.querySelector("#comparison-output");
 const loadDemoButton = document.querySelector("#load-demo");
 const runButton = document.querySelector("#run-optimization");
+const compareButton = document.querySelector("#compare-scenarios");
 const scenarioSelect = document.querySelector("#scenario-select");
 
 const scenarios = {
@@ -84,28 +88,23 @@ function pressureTone(value) {
 function createMetricCard(title, rows, badgeText) {
   const card = document.createElement("div");
   card.className = "metric";
-
   const titleRow = document.createElement("div");
   titleRow.className = "metric-title";
   const strong = document.createElement("strong");
   strong.textContent = title;
   titleRow.append(strong);
-
   if (badgeText) {
     const pill = document.createElement("span");
     pill.className = "pill";
     pill.textContent = badgeText;
     titleRow.append(pill);
   }
-
   card.append(titleRow);
-
   for (const rowText of rows) {
     const row = document.createElement("div");
     row.textContent = rowText;
     card.append(row);
   }
-
   return card;
 }
 
@@ -116,44 +115,62 @@ function renderNodeList(container, nodes, emptyText, className = "metric-list") 
     container.textContent = emptyText;
     return;
   }
-
   container.className = className;
-  for (const node of nodes) {
-    container.append(node);
-  }
+  for (const node of nodes) container.append(node);
+}
+
+async function fetchJson(path, options) {
+  const response = await fetch(path, options);
+  const data = await response.json();
+  return { response, data };
 }
 
 async function loadDemo() {
-  const response = await fetch("/api/demo");
-  const data = await response.json();
+  const { data } = await fetchJson("/api/demo");
   snapshotInput.value = formatJson(data.snapshot);
   attendeeInput.value = formatJson(data.attendee);
 }
 
 async function loadConfig() {
-  const response = await fetch("/api/config");
-  const data = await response.json();
+  const { data } = await fetchJson("/api/config");
   const diagnostics = data.diagnostics;
   const integrations = diagnostics.integrations;
-
   integrationMode.textContent =
     diagnostics.mode === "live"
       ? `Live Google mode · ${diagnostics.projectId ?? "project configured"}`
       : `Demo mode · Maps ${integrations.maps}, Firebase ${integrations.notifications}, Pub/Sub ${integrations.pubsub}`;
 }
 
-function loadScenario(choice) {
-  if (choice === "demo") {
-    return loadDemo();
-  }
+async function loadAudit() {
+  const { data } = await fetchJson("/api/audit");
+  renderNodeList(
+    auditTrail,
+    (data.runs ?? []).map((item) =>
+      createMetricCard(
+        `${item.mode.toUpperCase()} · ${item.venueId}`,
+        [
+          `Status: ${item.venueStatus}`,
+          `Confidence: ${item.confidenceScore}`,
+          `Actions: ${item.actionCount}`,
+          `Request ID: ${item.requestId}`,
+        ],
+        item.busiestZoneId ?? "no hotspot",
+      ),
+    ),
+    "Recent runs will appear here.",
+  );
+}
 
+function loadScenario(choice) {
+  if (choice === "demo") return loadDemo();
   const scenario = scenarios[choice];
   snapshotInput.value = formatJson(scenario.snapshot);
   attendeeInput.value = formatJson(scenario.attendee);
   return Promise.resolve();
 }
 
-function renderResult(result, delivery, diagnostics) {
+function renderResult(payload) {
+  const { result, delivery, diagnostics, requestId } = payload;
   renderNodeList(
     venueSummary,
     [
@@ -170,19 +187,11 @@ function renderResult(result, delivery, diagnostics) {
     ],
     "Venue-level insight will appear here.",
   );
-
   renderNodeList(
     hotspots,
-    result.summary.hotspots.map((item) =>
-      createMetricCard(
-        item.zoneId,
-        [`Pressure: ${item.pressure}`],
-        item.severity,
-      ),
-    ),
+    result.summary.hotspots.map((item) => createMetricCard(item.zoneId, [`Pressure: ${item.pressure}`], item.severity)),
     "Hotspots will appear here.",
   );
-
   renderNodeList(
     zonePressure,
     Object.entries(result.zonePressure).map(([zoneId, pressure]) =>
@@ -190,18 +199,18 @@ function renderResult(result, delivery, diagnostics) {
     ),
     "Run a scenario to see zone pressure.",
   );
-
   renderNodeList(
     queueRecommendations,
     result.queueRecommendations.map((item) =>
       createMetricCard(item.servicePointId, [
         `Estimated wait: ${item.estimatedWaitMinutes} minutes`,
         `Alternative: ${item.recommendedAlternativeId ?? "No better alternative nearby"}`,
+        `Confidence: ${item.confidenceScore ?? "n/a"}`,
+        item.explanation ?? "No additional explanation available.",
       ]),
     ),
     "Queue guidance will appear here.",
   );
-
   renderNodeList(
     attendeeGuidance,
     result.attendeeGuidance
@@ -209,27 +218,48 @@ function renderResult(result, delivery, diagnostics) {
           createMetricCard(result.attendeeGuidance.attendeeId, [
             `Path: ${result.attendeeGuidance.route.path.join(" -> ")}`,
             `Walk time: ${result.attendeeGuidance.route.estimatedMinutes} minutes`,
+            `Confidence: ${result.attendeeGuidance.confidenceScore ?? "n/a"}`,
             result.attendeeGuidance.rationale,
           ]),
         ]
       : [],
     "Attendee routing will appear here.",
   );
-
+  renderNodeList(
+    explainability,
+    [
+      createMetricCard(
+        "Optimization confidence",
+        [
+          `Confidence score: ${result.explainability.confidenceScore}`,
+          ...result.explainability.reasons,
+          ...result.explainability.assumptions.map((item) => `Assumption: ${item}`),
+        ],
+        requestId,
+      ),
+    ],
+    "Model reasoning will appear here.",
+  );
   const interventionCards = result.interventions.map((item) => {
-    const card = createMetricCard(`${item.type.toUpperCase()} · ${item.zoneId}`, [item.message], item.priority);
+    const card = createMetricCard(
+      `${item.type.toUpperCase()} · ${item.zoneId}`,
+      [
+        item.message,
+        `Confidence: ${item.confidenceScore ?? "n/a"}`,
+        item.rationale ?? "No rationale provided.",
+      ],
+      item.priority,
+    );
     card.classList.add(`priority-${item.priority}`);
     return card;
   });
   renderNodeList(interventions, interventionCards, "No interventions yet.", "cards");
-
-  deliveryPreview.textContent = formatJson({ diagnostics, delivery });
+  deliveryPreview.textContent = formatJson({ requestId, diagnostics, delivery });
 }
 
 async function runOptimization() {
   let snapshot;
   let attendee;
-
   try {
     snapshot = JSON.parse(snapshotInput.value);
     attendee = attendeeInput.value.trim() ? JSON.parse(attendeeInput.value) : undefined;
@@ -240,18 +270,12 @@ async function runOptimization() {
 
   runButton.disabled = true;
   runButton.textContent = "Running...";
-
   try {
-    const response = await fetch("/api/optimize", {
+    const { response, data } = await fetchJson("/api/optimize", {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ snapshot, attendee }),
     });
-
-    const data = await response.json();
-
     if (!response.ok) {
       const issueText = Array.isArray(data.issues)
         ? data.issues.map((issue) => `${issue.path || "payload"}: ${issue.message}`).join("\n")
@@ -259,12 +283,47 @@ async function runOptimization() {
       window.alert(issueText);
       return;
     }
-
-    renderResult(data.result, data.delivery, data.diagnostics);
+    renderResult(data);
+    await loadAudit();
   } finally {
     runButton.disabled = false;
     runButton.textContent = "Run optimization";
   }
+}
+
+async function compareScenarios() {
+  const baselineScenario = scenarios.demo;
+  const candidateKey = scenarioSelect.value;
+  const candidateScenario = candidateKey === "demo" ? scenarios.halftime : scenarios[candidateKey];
+  const { response, data } = await fetchJson("/api/compare", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      baselineSnapshot: baselineScenario ? baselineScenario.snapshot : JSON.parse(snapshotInput.value),
+      candidateSnapshot: candidateScenario.snapshot,
+      attendee: candidateScenario.attendee,
+    }),
+  });
+  if (!response.ok) {
+    window.alert(data.error ?? "Comparison failed.");
+    return;
+  }
+  const delta = data.comparison.delta;
+  renderNodeList(
+    comparisonOutput,
+    [
+      createMetricCard("Scenario comparison", [
+        `Average pressure delta: ${delta.averagePressureDelta}`,
+        `Highest wait delta: ${delta.highestWaitDelta}`,
+        `Action count delta: ${delta.actionCountDelta}`,
+        `Improved hotspots: ${delta.improvedHotspots.join(", ") || "none"}`,
+        `Worsened hotspots: ${delta.worsenedHotspots.join(", ") || "none"}`,
+        delta.conclusion,
+      ], data.requestId),
+    ],
+    "Run a comparison to see resilience improvements or regressions.",
+  );
+  await loadAudit();
 }
 
 loadDemoButton.addEventListener("click", () => {
@@ -285,8 +344,14 @@ runButton.addEventListener("click", () => {
   });
 });
 
+compareButton.addEventListener("click", () => {
+  compareScenarios().catch((error) => {
+    window.alert(`Could not compare scenarios: ${error instanceof Error ? error.message : "Unknown error"}`);
+  });
+});
+
 loadConfig().catch(() => {
   integrationMode.textContent = "Could not load integration config";
 });
-
+loadAudit().catch(() => {});
 loadScenario("demo").catch(() => {});

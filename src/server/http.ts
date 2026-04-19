@@ -3,9 +3,12 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import {
   MAX_REQUEST_BYTES,
   createAppContext,
+  getAuditPayload,
   getConfigPayload,
   getDemoPayload,
+  getMetricsPayload,
   resolveStaticAsset,
+  runComparisonPayload,
   runOptimizationPayload,
 } from "./app.js";
 
@@ -66,9 +69,30 @@ export function startServer(port = Number(process.env.PORT ?? "3000")) {
         return;
       }
 
+      if (request.method === "GET" && url.pathname === "/api/audit") {
+        sendJson(response, 200, getAuditPayload(context));
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/metrics") {
+        sendJson(response, 200, getMetricsPayload(context));
+        return;
+      }
+
       if (request.method === "POST" && url.pathname === "/api/optimize") {
         const payload = await parseJsonBody<{ snapshot?: unknown; attendee?: unknown }>(request);
         const result = await runOptimizationPayload(context, payload);
+        sendJson(response, result.statusCode, result.body);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/compare") {
+        const payload = await parseJsonBody<{
+          baselineSnapshot?: unknown;
+          candidateSnapshot?: unknown;
+          attendee?: unknown;
+        }>(request);
+        const result = runComparisonPayload(context, payload);
         sendJson(response, result.statusCode, result.body);
         return;
       }

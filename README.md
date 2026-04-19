@@ -106,7 +106,10 @@ The local app now includes:
 - `GET /api/health` for server health checks
 - `GET /api/demo` to load a ready-made venue scenario
 - `GET /api/config` to show whether Google integrations are in demo or live mode
+- `GET /api/audit` to inspect recent optimization and comparison runs
+- `GET /api/metrics` to inspect lightweight operational metrics
 - `POST /api/optimize` to submit a snapshot and optional attendee profile
+- `POST /api/compare` to compare a candidate venue state against a baseline
 - strict schema validation with structured error details on invalid requests
 - a browser dashboard in `public/` for live testing without any frontend build step
 - Vercel-ready serverless endpoints in `api/` for hosted deployment
@@ -152,6 +155,7 @@ These changes are aimed at stronger technical review scores:
 - tighter input validation and safer failure modes
 - cleaner domain separation between models, optimization, orchestration, and transport
 - better live usability through scenario presets and venue summaries
+- compare-mode analysis, audit history, and request envelopes for stronger platform maturity
 - clearer deployment and environment setup
 - additional automated tests for runtime mode and validation behavior
 
@@ -243,6 +247,7 @@ The included tests cover the most important decision paths:
 - high-pressure intervention generation
 - safe Google runtime mode selection
 - payload validation and venue summary generation
+- explainability, comparison deltas, and audit history behavior
 
 ## Production hardening recommendations
 

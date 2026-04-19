@@ -4,6 +4,8 @@ import {
   type Connection,
   type Intervention,
   type OptimizationResult,
+  type OptimizationComparison,
+  type OptimizationDelta,
   type QueueRecommendation,
   type RouteOption,
   type ServicePoint,
@@ -38,6 +40,23 @@ function pressureSeverity(pressure: number): ZoneHotspot["severity"] {
     return "elevated";
   }
   return "healthy";
+}
+
+function calculateConfidenceScore(inputs: {
+  zoneCount: number;
+  servicePointCount: number;
+  connectionCount: number;
+  interventionCount: number;
+}): number {
+  const dataCoverage = clamp(
+    (inputs.zoneCount / 8) * 0.35 +
+      (inputs.servicePointCount / 6) * 0.25 +
+      (inputs.connectionCount / 10) * 0.2,
+    0.2,
+    0.9,
+  );
+  const responseReadiness = inputs.interventionCount > 0 ? 0.08 : 0.03;
+  return Number(clamp(dataCoverage + responseReadiness, 0.25, 0.98).toFixed(2));
 }
 
 export function estimateWaitMinutes(servicePoint: ServicePoint): number {
@@ -187,6 +206,8 @@ export function recommendRoute(
       bestRoute.averagePressure > 0.85
         ? "This path is the safest currently available option under heavy venue pressure."
         : "This path balances low congestion, accessibility, and walking time.",
+    confidenceScore: Number(clamp(0.92 - bestRoute.averagePressure * 0.22, 0.55, 0.95).toFixed(2)),
+    alternatives: routes.slice(1, 3),
   };
 }
 
@@ -218,6 +239,8 @@ export function recommendQueues(snapshot: VenueSnapshot): QueueRecommendation[] 
     const recommendation: QueueRecommendation = {
       servicePointId: servicePoint.id,
       estimatedWaitMinutes,
+      confidenceScore: Number(clamp(0.72 + servicePoint.activeCounters * 0.04, 0.55, 0.96).toFixed(2)),
+      explanation: `${servicePoint.queueDepth} people are being served at ${servicePoint.activeCounters} active counters.`,
     };
 
     if (bestAlternative && bestAlternative.wait + 3 < estimatedWaitMinutes) {
@@ -243,6 +266,8 @@ export function generateInterventions(snapshot: VenueSnapshot): Intervention[] {
         zoneId: zone.id,
         targetGroup: "staff",
         message: `Deploy crowd marshals to ${zone.name} and open overflow lanes immediately.`,
+        confidenceScore: Number(clamp(0.8 + pressure * 0.1, 0.7, 0.98).toFixed(2)),
+        rationale: "Sustained crowd pressure is above the critical threshold.",
       });
       interventions.push({
         type: "signage",
@@ -250,6 +275,8 @@ export function generateInterventions(snapshot: VenueSnapshot): Intervention[] {
         zoneId: zone.id,
         targetGroup: "attendees",
         message: `Update nearby signage to divert fans away from ${zone.name}.`,
+        confidenceScore: Number(clamp(0.78 + pressure * 0.1, 0.68, 0.97).toFixed(2)),
+        rationale: "A visible redirect is likely to reduce inflow into the hotspot quickly.",
       });
     } else if (pressure >= 0.9) {
       interventions.push({
@@ -258,6 +285,8 @@ export function generateInterventions(snapshot: VenueSnapshot): Intervention[] {
         zoneId: zone.id,
         targetGroup: "all",
         message: `Begin soft rerouting around ${zone.name} before congestion escalates.`,
+        confidenceScore: Number(clamp(0.7 + pressure * 0.12, 0.62, 0.94).toFixed(2)),
+        rationale: "Preemptive routing is preferable before critical density forms.",
       });
     }
   }
@@ -271,6 +300,8 @@ export function generateInterventions(snapshot: VenueSnapshot): Intervention[] {
         zoneId: servicePoint.zoneId,
         targetGroup: "attendees",
         message: `${servicePoint.name} is experiencing a ${wait}-minute wait. Recommend alternative facilities nearby.`,
+        confidenceScore: Number(clamp(0.68 + wait / 30, 0.6, 0.92).toFixed(2)),
+        rationale: "Queue depth suggests attendee frustration risk is increasing.",
       });
     }
   }
@@ -345,6 +376,24 @@ export function optimizeVenue(
     queueRecommendations,
     interventions,
     summary: summarizeVenue(zonePressure, queueRecommendations, interventions),
+    explainability: {
+      confidenceScore: calculateConfidenceScore({
+        zoneCount: snapshot.zones.length,
+        servicePointCount: snapshot.servicePoints.length,
+        connectionCount: snapshot.connections.length,
+        interventionCount: interventions.length,
+      }),
+      assumptions: [
+        "Occupancy and queue inputs are recent and representative.",
+        "Crowd behavior will respond to signage and routing advice within minutes.",
+        "Service rates remain stable during the evaluation window.",
+      ],
+      reasons: [
+        "Zone pressure blends occupancy and flow imbalance.",
+        "Wait-time estimates are derived from throughput and queue depth.",
+        "Interventions are escalated based on clear pressure thresholds.",
+      ],
+    },
   };
 
   if (attendeeGuidance) {
@@ -352,4 +401,31 @@ export function optimizeVenue(
   }
 
   return result;
+}
+
+export function compareOptimizations(
+  baselineSnapshot: VenueSnapshot,
+  candidateSnapshot: VenueSnapshot,
+  attendee?: AttendeeProfile,
+): OptimizationComparison {
+  const baseline = optimizeVenue(baselineSnapshot, attendee);
+  const candidate = optimizeVenue(candidateSnapshot, attendee);
+  const baselineHotspots = new Set(baseline.summary.hotspots.map((item) => item.zoneId));
+  const candidateHotspots = new Set(candidate.summary.hotspots.map((item) => item.zoneId));
+  const improvedHotspots = [...baselineHotspots].filter((zoneId) => !candidateHotspots.has(zoneId));
+  const worsenedHotspots = [...candidateHotspots].filter((zoneId) => !baselineHotspots.has(zoneId));
+
+  const delta: OptimizationDelta = {
+    averagePressureDelta: Number((candidate.summary.averageZonePressure - baseline.summary.averageZonePressure).toFixed(3)),
+    highestWaitDelta: Number((candidate.summary.highestPredictedWaitMinutes - baseline.summary.highestPredictedWaitMinutes).toFixed(1)),
+    actionCountDelta: candidate.summary.recommendedActionCount - baseline.summary.recommendedActionCount,
+    improvedHotspots,
+    worsenedHotspots,
+    conclusion:
+      candidate.summary.averageZonePressure < baseline.summary.averageZonePressure
+        ? "The candidate scenario is more resilient and should perform better operationally."
+        : "The candidate scenario increases pressure and should be revised before rollout.",
+  };
+
+  return { baseline, candidate, delta };
 }

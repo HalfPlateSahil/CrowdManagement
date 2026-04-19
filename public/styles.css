@@ -173,6 +173,11 @@ textarea,
   border: 1px solid var(--line);
 }
 
+.button:disabled {
+  opacity: 0.65;
+  cursor: progress;
+}
+
 .metric-list,
 .cards {
   display: grid;

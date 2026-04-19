@@ -60,6 +60,8 @@ export interface QueueRecommendation {
   servicePointId: string;
   estimatedWaitMinutes: number;
   recommendedAlternativeId?: string;
+  confidenceScore?: number;
+  explanation?: string;
 }
 
 export interface ZoneHotspot {
@@ -84,6 +86,8 @@ export interface Intervention {
   zoneId: string;
   message: string;
   targetGroup: "attendees" | "staff" | "all";
+  confidenceScore?: number;
+  rationale?: string;
 }
 
 export interface AttendeeGuidance {
@@ -91,6 +95,8 @@ export interface AttendeeGuidance {
   route: RouteOption;
   rationale: string;
   queueRecommendation?: QueueRecommendation;
+  confidenceScore?: number;
+  alternatives?: RouteOption[];
 }
 
 export interface OptimizationResult {
@@ -100,4 +106,35 @@ export interface OptimizationResult {
   queueRecommendations: QueueRecommendation[];
   interventions: Intervention[];
   summary: VenueSummary;
+  explainability: {
+    confidenceScore: number;
+    assumptions: string[];
+    reasons: string[];
+  };
+}
+
+export interface OptimizationDelta {
+  averagePressureDelta: number;
+  highestWaitDelta: number;
+  actionCountDelta: number;
+  improvedHotspots: string[];
+  worsenedHotspots: string[];
+  conclusion: string;
+}
+
+export interface OptimizationComparison {
+  baseline: OptimizationResult;
+  candidate: OptimizationResult;
+  delta: OptimizationDelta;
+}
+
+export interface AuditRecord {
+  requestId: string;
+  createdAtIso: string;
+  venueId: string;
+  mode: "optimize" | "compare";
+  venueStatus: VenueSummary["venueStatus"];
+  confidenceScore: number;
+  actionCount: number;
+  busiestZoneId?: string;
 }
